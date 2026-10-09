@@ -1,58 +1,95 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Hoop Arena — Sistema de Torneos de Básquetbol
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplicación web hecha con Laravel donde un **administrador** crea torneos de básquetbol
+y los **jugadores** se inscriben. Los visitantes sin cuenta solo consultan.
 
-## About Laravel
+**Segundo Parcial — Aplicaciones Web Interactivas**
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Guillermo Jair Muñoz Amaro -332508**
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Tecnologías
+- Laravel 12 · PHP 8.2+
+- SQLite
+- Tailwind CSS 4 (Vite)
+- Alpine.js (modales, menú, transiciones) y GSAP (animaciones)
+- Autenticación manual con roles (`admin` / `jugador`)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Requisitos
+PHP 8.2+, Composer, Node.js 18+ y npm. La extensión `pdo_sqlite` de PHP debe estar activa.
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
+## Instalación
 ```bash
-composer require laravel/boost --dev
+git clone <URL-DEL-REPOSITORIO>
+cd torneos-basquet
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite      # Windows: type nul > database\database.sqlite
+php artisan migrate:fresh --seed
+composer run dev                    # o: php artisan serve + npm run dev
+```
+Abrir: http://localhost:8000
 
-php artisan boost:install
+## Cuentas demo
+| Rol | Correo | Contraseña |
+|---|---|---|
+| Administrador | admin@torneos.test | password |
+| Jugador | jugador@torneos.test | password |
+| Jugadores NBA (12) | lebron.james@torneos.test, james.harden@torneos.test, etc. | password |
+
+### ¿Cómo se crea el administrador?
+Con el seeder `UsuariosSeeder` (`php artisan migrate:fresh --seed`).
+El registro público **siempre** crea usuarios con rol `jugador`.
+Alternativa manual: registrar una cuenta y ejecutar
+`php artisan tinker` → `User::where('email','tu@correo.com')->update(['role'=>'admin']);`
+
+## Reglas de sistema
+- Un torneo está **cerrado** si el admin lo marca cerrado, si su fecha ya pasó o si se llenó el cupo.
+- El listado público solo muestra torneos abiertos, con fecha futura y cupo libre, ordenados por fecha próxima.
+  Los torneos cerrados/llenos solo se ven por URL directa (`/torneos/{id}`).
+- Cupo entre 2 y 100 (por defecto 16). No se puede bajar por debajo de los jugadores ya inscritos.
+- Un jugador no puede inscribirse dos veces (validación en controlador + índice único en BD).
+- Cancelar una inscripción libera la plaza; solo se permite hasta la fecha del evento.
+- Al eliminar un torneo se eliminan sus inscripciones (cascada).
+
+## Cómo probar cada punto
+1. **Registro / login / logout con roles**
+   Ir a `/registro`, crear cuenta (queda como jugador), cerrar sesión y entrar con `admin@torneos.test`.
+   El menú cambia según el rol (Mis torneos / Panel admin).
+2. **CRUD de torneos (admin)**
+   En `/admin/torneos` crear un torneo. Probar errores: nombre vacío, fecha pasada, cupo 1 o 101.
+   Editar y bajar el cupo por debajo de los inscritos (ej. "Liga Intercolegial 5x5" con cupo 1 →
+   error). Eliminar un torneo con inscritos (pide confirmación).
+3. **Listado y detalle público**
+   En `/torneos` (sin sesión) se ven solo los torneos disponibles, ordenados por fecha.
+   No aparecen "Clásico de Veteranos" (cerrado), "Torneo Apertura" (pasado) ni "Final Four Express" (lleno),
+   pero sí por URL directa. Si no hay torneos, se muestra un mensaje. Usar el buscador.
+4. **Inscripciones (jugador)**
+   Con `jugador@torneos.test`: abrir un torneo → "Inscribirme". Intentar inscribirse de nuevo (aviso de duplicado).
+   Abrir "Final Four Express" (lleno) y el "Clásico de Veteranos" (cerrado): no se puede inscribir.
+   Ver "Mis torneos" y cancelar una inscripción: la plaza se libera.
+5. **Gestión de inscritos (admin)**
+   En el panel, botón "Inscritos" → "Dar de baja" a un jugador.
+6. **Permisos**
+   Sin sesión o como jugador, entrar a `/admin/torneos` → redirige con aviso.
+   Como admin, `/mis-torneos` también redirige con aviso.
+7. **Mensajes**
+   Éxitos y errores aparecen en español como avisos y debajo de cada campo.
+
+## Estructura relevante
+```
+app/Http/Controllers/        AuthController, TorneoController, InscripcionController
+app/Http/Controllers/Admin/  TorneoController, InscripcionController
+app/Http/Middleware/         RolMiddleware (alias "rol")
+app/Http/Requests/           TorneoRequest
+app/Models/                  User, Torneo, Inscripcion
+database/migrations/         users.role, torneos, inscripciones
+database/seeders/            UsuariosSeeder, TorneoSeeder
+resources/views/             layouts, auth, torneos, admin, components
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Extras implementados
+Diseño responsive con Tailwind, animaciones con GSAP/Alpine, buscador, contador y barra de plazas,
+badges de estado (abierto, lleno, cerrado, finalizado, inscrito), modales de confirmación al eliminar/cancelar
+y pantalla "Mis torneos" con historial.

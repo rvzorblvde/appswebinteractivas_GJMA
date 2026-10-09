@@ -63,6 +63,6 @@
     @yield('content')
 </main>
 
-<footer class="py-6 text-center text-xs text-slate-400">Hoop Arena · Segundo Parcial · Programación Interactiva</footer>
+<footer class="py-6 text-center text-xs text-slate-400">Hoop Arena · Segundo Parcial · Aplicaciones Web Interactivas</footer>
 </body>
 </html>
